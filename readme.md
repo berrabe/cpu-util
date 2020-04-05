@@ -18,6 +18,16 @@
    - Set MAX CPU Frequency (cpufreq cannot exceed the specified limit)
    - turn on and off half of the available CPU cores (for ease of use)
 
+# Installation
+
+You can use this script very easily
+
+```sh
+$ git clone https://github.com/berrabe/cpu-util.git
+$ cd cpu-util
+$ sudo cp cpu-util /usr/bin/
+```
+
 # Help Page
 
 Avail Mode
@@ -36,6 +46,8 @@ Detail
   * show help page
 * -v / --version 
   * print script version
+* -cu / --check-update
+  * check update from github
 
 Example
 - \# sudo cpu-util -mo
