@@ -1,4 +1,10 @@
-#!/bin/bash
+#!/usr/bin/env bash
+#
+# CPpu-Util : simple monitoring CPU
+# https://github.com/berrabe/cpu-util
+#
+# Created by berrabe
+# https://github.com/berrabe/
 
 ##############################################################################
 #   /$$$$$$                                          /$$   /$$   /$$     /$$ /$$
@@ -15,13 +21,13 @@
 ##############################################################################
 
 # =========================================================== Check
-VERSION=1.7.5
+VERSION=1.7.6
 
-if [ "$EUID" -ne 0 ]
-	then
-		echo -ne "\n[!] please run as root\n"
-		exit
-fi
+# if [ "$EUID" -ne 0 ]
+# 	then
+# 		echo -ne "\n[!] please run as root\n"
+# 		exit
+# fi
 
 if [[ $# -eq 0 ]]
 	then
@@ -36,18 +42,11 @@ NOCOLOR='\033[0m'
 WHITE='\033[1;37m'
 
 # init global var
+cols=$(tput cols)
+rows=$(tput lines)
 d_cores=$(cat /proc/cpuinfo | grep processor | wc -l)
 s_cores=$(ls /sys/devices/system/cpu/ | grep -i "cpu[0-9]" | wc -l)
 core_="$(($d_cores-1))"
-
-cpu_model=$(cat /proc/cpuinfo | grep "model name" | head -n 1 | cut -b14-)
-host=$(sudo dmidecode | grep Version | sed -n '2p' | cut -b 11-)
-kernel=$(hostnamectl | grep "Kernel" | cut -b 21-)
-os=$(hostnamectl | grep "Operating System" | cut -b 21-)
-arch=$(hostnamectl | grep "Architecture" | cut -b 21-)
-
-cols=$(tput cols)
-rows=$(tput lines)
 
 # =========================================================== Func
 
@@ -88,6 +87,15 @@ function help_page() {
 
 function monitoring() {
 	clear
+
+	cpu_model=$(cat /proc/cpuinfo | grep "model name" | head -n 1 | cut -b14-)
+	cpu_driver=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_driver)
+	cpu_gov=$(cat /sys/devices/system/cpu/cpu0/cpufreq/scaling_available_governors | sed 's/ / - /g')
+	host=$(cat /sys/devices/virtual/dmi/id/product_version)
+	kernel=$(uname -r)
+	os=$(hostnamectl | grep "Operating System" | cut -b 21-)
+	arch=$(hostnamectl | grep "Architecture" | cut -b 21-)
+
     while true
 		do
 			if [[ $(tput cols) -ne $cols || $(tput lines) -ne $rows ]]
@@ -99,30 +107,35 @@ function monitoring() {
 
 			if [[ $(cat /proc/cpuinfo | grep processor | wc -l) -ne $d_cores ]]
 				then
-					echo -e "\n[!] WARNING | system changed\n"
+					echo -e "\n[!] WARNING | Core Changed \n"
 					exit
 			fi
 
 			uptime_=$(uptime -p | cut -b 4-)
-
 			cpu_usage_=$(grep 'cpu ' /proc/stat | awk '{cpu_usage=($2+$4)*100/($2+$4+$5)} END {printf "%0.2f %", cpu_usage}')
-			cpu_temp_=$(sensors | egrep "Core [0-$s_cores]" | cut -b 17-18 | sed -z 's/\n/ °C-/g')
+			cpu_temp_=$(sensors | grep -oP 'Core.*?\+\K[0-9.]+' | sed -z 's/\n/ °C-/g')
 			sys_memory_=$(awk '/^Mem/ {print $3 " MB / " $2 " MB"}' <(free -m))
 			cpu_freq_=$(cat /proc/cpuinfo | grep -i "cpu MHz" | cut -b 12-20 | sed -z 's/\n/ MHz-/g')
 
     echo -ne "
-[ System Monitoring ] [ $(date +%H:%M:%S) ]
+[ Monitoring ] [ $(date +%H:%M:%S) ]
 
-[+] Proc \t$cpu_model
-[+] Uptime \t$uptime_
-[+] Host \t$host
-[+] Kernel \t$kernel
-[+] OS \t\t$os $arch
+[+] OS Info
+ |
+ |-[+] Proc \t$cpu_model
+ |-[+] Uptime \t$uptime_
+ |-[+] Host \t$host
+ |-[+] Kernel \t$kernel
+ |-[+] Arch \t$os $arch
 
-[+] cpu \t$cpu_usage_
-[+] Mem \t$sys_memory_
-[+] Core \t$d_cores / $s_cores Cores
-[+] Freq|Temp \t$(echo $cpu_freq_ | sed -z 's/-/\n\t\t/g') $(tput cup 12 32 && echo $cpu_temp_ | sed 's/-/\n\t\t\t\t/g') "		
+[+] Sys Info
+ |
+ |-[+] cpu \t$cpu_usage_
+ |-[+] Driver \t$cpu_driver
+ |-[+] Gov \t$cpu_gov
+ |-[+] Mem \t$sys_memory_
+ |-[+] Core \t$d_cores / $s_cores Cores
+ |-[+] Stats \t$(echo $cpu_freq_ | sed -z 's/-/\n\t\t/g') $(tput cup 18 32 && echo $cpu_temp_ | sed 's/-/\n\t\t\t\t/g') "		
 
 	    tput cup 0 0
 	    sleep 1
@@ -157,7 +170,7 @@ function set_freq() {
 			do
 				# echo -ne "Core $i \t=> " && echo -ne $2 | sudo tee "/sys/devices/system/cpu/cpu$i/cpufreq/scaling_max_freq" && echo " MHz"
 				file="/sys/devices/system/cpu/cpu$i/cpufreq/scaling_max_freq"
-				su -c "echo $1 > '$file'"
+				sudo su -c "echo $1 > '$file'"
 
 				echo -e "Core $i \t=> $(echo $1 | sed ':a;s/\B[0-9]\{3\}\>/,&/;ta') MHz"
 			done
@@ -191,7 +204,7 @@ function core_manage() {
 		for i in $(seq $_cores $cores_)
 			do
 				file="/sys/devices/system/cpu/cpu$i/online"
-				su -c "echo $1 > '$file'"
+				sudo su -c "echo $1 > '$file'"
 
 				echo  -e "Core $i > $1 $([[ $1 = 1 ]] && echo "[ON]" || echo "[Off]") "
 			done
