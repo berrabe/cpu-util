@@ -23,9 +23,8 @@
 You can use this script very easily
 
 ```sh
-$ git clone https://github.com/berrabe/cpu-util.git
-$ cd cpu-util
-$ sudo cp cpu-util /usr/bin/
+> wget https://raw.githubusercontent.com/berrabe/cpu-util/master/cpu-util
+> chmod +x cpu-util
 ```
 
 # Help Page
